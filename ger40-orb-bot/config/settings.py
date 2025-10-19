@@ -3,7 +3,7 @@ Configuration settings for GER40 ORB Trading Bot
 """
 
 # Data settings
-DATA_FILE_PATH = "../data/FOREXCOM_GER40, 15 (3).csv"
+DATA_FILE_PATH = "data/GER40_15m_7days.csv"
 
 # Strategy parameters
 ORB_STRATEGY_CONFIG = {
