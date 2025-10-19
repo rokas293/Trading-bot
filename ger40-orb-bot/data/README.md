@@ -4,10 +4,17 @@ This folder contains historical GER40 (German DAX) price data for backtesting th
 
 ## Data Files
 
-- **GER40_15m_7days.csv** - 15-minute candle data for the last 7 days
-  - Format: time, open, high, low, close
+- **FOREXCOM_GER40, 15 (3).csv** - 15-minute candle data (Oct 2024 - Oct 2025)
+  - Format: time, open, high, low, close, Up Marker, Down Marker
+  - Size: 21,861 rows covering full year
+  - Date Range: October 31, 2024 to October 3, 2025
   - Timezone: UTC
-  - Used for ORB strategy testing (London session: 8:00-8:15 GMT = 07:00 UTC)
+  - Used for comprehensive ORB strategy analysis
+  - Results: 238 trading days, 100% breakout detection rate
+
+## Historical Data (Removed)
+
+- **GER40_15m_7days.csv** - Previous 7-day dataset (replaced with full year data)
 
 ## Data Requirements
 
