@@ -12,9 +12,10 @@ This folder contains historical GER40 (German DAX) price data for backtesting th
 ## Data Requirements
 
 The ORB strategy requires:
+
 - 15-minute timeframe data
 - OHLC format (Open, High, Low, Close)
-- UTC timezone 
+- UTC timezone
 - London session coverage (07:00-16:00 UTC)
 
 ## Usage

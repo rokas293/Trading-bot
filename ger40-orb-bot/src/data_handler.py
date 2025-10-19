@@ -39,8 +39,12 @@ class DataHandler:
             
         print("🚀 Loading GER40 data...")
         
-        # Load the raw data
-        self.df = pd.read_csv(self.data_file_path)
+        # Load the raw data, skipping header rows
+        self.df = pd.read_csv(self.data_file_path, skiprows=2)
+        
+        # Rename columns to standard format
+        if len(self.df.columns) >= 5:
+            self.df.columns = ['time', 'close', 'high', 'low', 'open', 'volume'] + list(self.df.columns[6:])
         
         # Validate required columns
         required_columns = ['time', 'open', 'high', 'low', 'close']
