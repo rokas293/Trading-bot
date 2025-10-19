@@ -23,14 +23,14 @@ class ORBStrategy:
         
     def get_orb_period_data(self, df: pd.DataFrame, target_date: str) -> pd.DataFrame:
         """
-        Find the 8:00-8:15 London ORB candle for a specific date.
+        Find the 8:00-8:15 London ORB candles for a specific date.
         
         Args:
             df: DataFrame with OHLC data
             target_date: Date string in format 'YYYY-MM-DD'
             
         Returns:
-            DataFrame containing the ORB candle(s) for the target date
+            DataFrame containing both ORB candles (8:00 and 8:15 London) for the target date
         """
         # Convert target_date string to datetime.date object for comparison
         target_date_obj = pd.to_datetime(target_date).date()
@@ -39,20 +39,21 @@ class ORBStrategy:
         # 1. Target date
         date_filter = df['datetime'].dt.date == target_date_obj
         
-        # 2. Hour 7 UTC = 8:00 London time
+        # 2. Hour 7 UTC = 8:00-8:59 London time
         hour_filter = df['hour'] == 7
         
-        # 3. Minute 0 (the 8:00 candle)
-        minute_filter = df['datetime'].dt.minute == 0
+        # 3. Minutes 0 and 15 (the 8:00 and 8:15 candles)
+        minute_filter = df['datetime'].dt.minute.isin([0, 15])
         
-        # Combine all filters
-        orb_candle = df[date_filter & hour_filter & minute_filter]
+        # Combine all filters to get both ORB candles
+        orb_candles = df[date_filter & hour_filter & minute_filter]
         
-        return orb_candle
+        return orb_candles
     
     def calculate_orb_range(self, df: pd.DataFrame, target_date: str) -> tuple[Optional[float], Optional[float]]:
         """
         Calculate the ORB range (high and low) for a specific date.
+        Uses only the 8:00 London (7:00 UTC) candle for the range.
         
         Args:
             df: DataFrame with OHLC data
@@ -66,9 +67,15 @@ class ORBStrategy:
         if len(orb_data) == 0:
             return None, None
         
-        # Get the high and low of the ORB period
-        range_high = orb_data['high'].max()
-        range_low = orb_data['low'].min()
+        # Get only the 8:00 London candle (7:00 UTC, minute 0)
+        orb_candle = orb_data[orb_data['datetime'].dt.minute == 0]
+        
+        if len(orb_candle) == 0:
+            return None, None
+            
+        # Use only the 8:00 candle's high and low
+        range_high = orb_candle['high'].iloc[0]
+        range_low = orb_candle['low'].iloc[0]
         
         return range_high, range_low
     
@@ -92,8 +99,8 @@ class ORBStrategy:
         # Filter for the target date and after 07:15 UTC (8:15 London)
         date_filter = df['datetime'].dt.date == target_date_obj
         
-        # After 07:15 UTC means hour > 7 OR (hour == 7 AND minute > 0)
-        time_filter = (df['hour'] > 7) | ((df['hour'] == 7) & (df['datetime'].dt.minute > 0))
+        # After 07:15 UTC means hour > 7 OR (hour == 7 AND minute > 15)
+        time_filter = (df['hour'] > 7) | ((df['hour'] == 7) & (df['datetime'].dt.minute > 15))
         
         # Get data after ORB period
         post_orb_data = df[date_filter & time_filter].copy()
@@ -104,11 +111,11 @@ class ORBStrategy:
             if candle['close'] > range_high:
                 entry_price = candle['close']  # Enter where candle closes
                 
-                # Stop loss: buffer points below candle's OPEN
-                stop_loss = candle['open'] - self.stop_buffer_points
+                # Stop loss: buffer points below the entry candle's LOW
+                stop_loss = candle['low'] - self.stop_buffer_points
                 
                 # Calculate risk and set 1:1 reward
-                risk = entry_price - stop_loss
+                risk = entry_price - stop_loss  # Variable risk based on candle structure
                 take_profit = entry_price + risk
                 
                 return {
@@ -131,11 +138,11 @@ class ORBStrategy:
             elif candle['close'] < range_low:
                 entry_price = candle['close']  # Enter where candle closes
                 
-                # Stop loss: buffer points above candle's OPEN
-                stop_loss = candle['open'] + self.stop_buffer_points
+                # Stop loss: buffer points above the entry candle's HIGH  
+                stop_loss = candle['high'] + self.stop_buffer_points
                 
                 # Calculate risk and set 1:1 reward
-                risk = stop_loss - entry_price
+                risk = stop_loss - entry_price  # Variable risk based on candle structure
                 take_profit = entry_price - risk
                 
                 return {

@@ -39,12 +39,11 @@ class DataHandler:
             
         print("🚀 Loading GER40 data...")
         
-        # Load the raw data, skipping header rows
-        self.df = pd.read_csv(self.data_file_path, skiprows=2)
+        # Load the raw data (FOREXCOM format doesn't need skiprows)
+        self.df = pd.read_csv(self.data_file_path)
         
-        # Rename columns to standard format
-        if len(self.df.columns) >= 5:
-            self.df.columns = ['time', 'close', 'high', 'low', 'open', 'volume'] + list(self.df.columns[6:])
+        # FOREXCOM format: time,open,high,low,close,Up Marker,Down Marker
+        # No need to rename columns as they're already in correct format
         
         # Validate required columns
         required_columns = ['time', 'open', 'high', 'low', 'close']
