@@ -8,6 +8,9 @@ import pandas as pd
 from typing import Optional, Dict, Any
 from datetime import datetime
 
+# Import MarketContext for context filtering
+from market_context import MarketContext
+
 
 class ORBStrategy:
     """Opening Range Breakout strategy implementation."""
@@ -163,14 +166,105 @@ class ORBStrategy:
         
         # No breakout found
         return None
+
+    def detect_fakeout(self, df: pd.DataFrame, target_date: str,
+                       range_high: float, range_low: float) -> Optional[Dict[str, Any]]:
+        """
+        Detect fakeout: price breaks ORB range but closes back inside (failed breakout).
+        
+        Args:
+            df: DataFrame with OHLC data
+            target_date: Date string in format 'YYYY-MM-DD'
+            range_high: The ORB range high level
+            range_low: The ORB range low level
+            
+        Returns:
+            Dictionary with fakeout entry (opposite direction) or None
+        """
+        target_date_obj = pd.to_datetime(target_date).date()
+        date_filter = df['datetime'].dt.date == target_date_obj
+        time_filter = (df['hour'] > 7) | ((df['hour'] == 7) & (df['datetime'].dt.minute > 15))
+        post_orb_data = df[date_filter & time_filter].copy()
+
+        for index, candle in post_orb_data.iterrows():
+            # Check for failed BUY breakout (wick above range_high, but close back inside)
+            if candle['high'] > range_high and candle['close'] <= range_high:
+                # Fakeout: enter SELL (opposite of failed break)
+                entry_price = candle['close']
+                stop_loss = candle['high'] + self.stop_buffer_points
+                risk = stop_loss - entry_price
+                take_profit = entry_price - risk
+
+                return {
+                    'signal_type': 'SELL',
+                    'entry_type': 'fakeout',
+                    'entry_price': entry_price,
+                    'stop_loss': stop_loss,
+                    'take_profit': take_profit,
+                    'risk': risk,
+                    'reward': risk,
+                    'range_high': range_high,
+                    'range_low': range_low,
+                    'range_size': range_high - range_low,
+                    'breakout_time': candle['datetime'],
+                    'candle_open': candle['open'],
+                    'candle_high': candle['high'],
+                    'candle_close': candle['close'],
+                    'fakeout_level': range_high
+                }
+
+            # Check for failed SELL breakout (wick below range_low, but close back inside)
+            elif candle['low'] < range_low and candle['close'] >= range_low:
+                # Fakeout: enter BUY (opposite of failed break)
+                entry_price = candle['close']
+                stop_loss = candle['low'] - self.stop_buffer_points
+                risk = entry_price - stop_loss
+                take_profit = entry_price + risk
+
+                return {
+                    'signal_type': 'BUY',
+                    'entry_type': 'fakeout',
+                    'entry_price': entry_price,
+                    'stop_loss': stop_loss,
+                    'take_profit': take_profit,
+                    'risk': risk,
+                    'reward': risk,
+                    'range_high': range_high,
+                    'range_low': range_low,
+                    'range_size': range_high - range_low,
+                    'breakout_time': candle['datetime'],
+                    'candle_open': candle['open'],
+                    'candle_low': candle['low'],
+                    'candle_close': candle['close'],
+                    'fakeout_level': range_low
+                }
+
+        return None
     
-    def analyze_single_day(self, df: pd.DataFrame, target_date: str) -> Dict[str, Any]:
+    def analyze_single_day(
+        self,
+        df: pd.DataFrame,
+        target_date: str,
+        market_context: Optional[MarketContext] = None,
+        *,
+        context_policy: str = 'strict',
+        min_1h_strength: int = 30,
+        max_orb_pct: float = 0.004,  # 0.4%
+        max_liq_distance_pct: float = 0.005,  # 0.5%
+        enable_fakeouts: bool = False
+    ) -> Dict[str, Any]:
         """
         Perform complete ORB analysis for a single day.
         
         Args:
             df: DataFrame with OHLC data
             target_date: Date string in format 'YYYY-MM-DD'
+            market_context: MarketContext instance for context filtering (optional)
+            context_policy: 'strict' allows only alignment-matching trades; 'soft' allows mixed if extra conditions pass
+            min_1h_strength: For soft policy, minimum 1H trend strength in trade direction to permit 'mixed'
+            max_orb_pct: For soft policy, ORB range percent threshold (range/price) to permit 'mixed'
+            max_liq_distance_pct: For soft policy, max distance to nearby liquidity beyond breakout side to permit 'mixed'
+            enable_fakeouts: If True, check for fakeout entries (failed breakouts) when no clean breakout occurs
             
         Returns:
             Dictionary containing complete analysis results
@@ -192,14 +286,97 @@ class ORBStrategy:
         
         # Step 2: Check for breakouts
         breakout = self.detect_orb_breakout(df, target_date, range_high, range_low)
-        
+
+        # Step 3: Context filtering
+        context_info = None
+        context_alignment = None
+        if market_context is not None:
+            # Get context for the target date (ensure UTC-aware to match data)
+            context_info = market_context.get_full_context(pd.to_datetime(target_date, utc=True))
+            context_alignment = context_info.get('trend_alignment', {}).get('alignment', None)
+
+        # Only allow trade if context gate passes
+        trade_allowed = True
+        gate_reason = None
+        if breakout and market_context is not None:
+            sig = breakout['signal_type']
+            # Last price proxy: use breakout candle close
+            price = breakout['entry_price']
+            range_size = range_high - range_low
+
+            if context_policy == 'strict':
+                if sig == 'BUY' and context_alignment not in ['bullish', 'weak_bullish']:
+                    trade_allowed, gate_reason = False, 'strict_mismatch'
+                elif sig == 'SELL' and context_alignment not in ['bearish', 'weak_bearish']:
+                    trade_allowed, gate_reason = False, 'strict_mismatch'
+            else:  # soft policy
+                def _has_liquidity_incentive(ctx: Dict[str, Any]) -> bool:
+                    liq = ctx.get('liquidity_pools', {})
+                    if sig == 'BUY':
+                        # look for equal/swing highs above range_high within distance
+                        candidates = (liq.get('equal_highs', []) or []) + (liq.get('swing_highs', []) or [])
+                        for lvl in candidates:
+                            if lvl > range_high and (lvl - range_high) / price <= max_liq_distance_pct:
+                                return True
+                    else:  # SELL
+                        candidates = (liq.get('equal_lows', []) or []) + (liq.get('swing_lows', []) or [])
+                        for lvl in candidates:
+                            if lvl < range_low and (range_low - lvl) / price <= max_liq_distance_pct:
+                                return True
+                    return False
+
+                def _one_hour_supports(ctx: Dict[str, Any]) -> bool:
+                    one_h = ctx.get('1h_trend', {})
+                    dir_ok = (sig == 'BUY' and one_h.get('direction') == 'bullish') or (sig == 'SELL' and one_h.get('direction') == 'bearish')
+                    return bool(dir_ok and (one_h.get('strength', 0) >= min_1h_strength))
+
+                def _orb_is_small() -> bool:
+                    # Use current price to normalize
+                    return (range_size / price) <= max_orb_pct
+
+                # Opposite weak alignment is still risky; require stronger confirmation
+                if sig == 'BUY' and context_alignment in ['bearish', 'weak_bearish']:
+                    if not (_one_hour_supports(context_info) and _has_liquidity_incentive(context_info)):
+                        trade_allowed, gate_reason = False, 'soft_opposite_without_support'
+                elif sig == 'SELL' and context_alignment in ['bullish', 'weak_bullish']:
+                    if not (_one_hour_supports(context_info) and _has_liquidity_incentive(context_info)):
+                        trade_allowed, gate_reason = False, 'soft_opposite_without_support'
+                elif context_alignment == 'mixed':
+                    # Allow if any of the supporting conditions is true
+                    if not (_one_hour_supports(context_info) or _has_liquidity_incentive(context_info) or _orb_is_small()):
+                        trade_allowed, gate_reason = False, 'soft_mixed_without_support'
+
+        # Step 4: If no valid breakout and fakeouts enabled, check for fakeout entry
+        fakeout = None
+        if enable_fakeouts and (not breakout or not trade_allowed):
+            fakeout = self.detect_fakeout(df, target_date, range_high, range_low)
+            
+            # Apply context filtering to fakeout as well
+            if fakeout and market_context is not None:
+                sig = fakeout['signal_type']
+                price = fakeout['entry_price']
+                
+                # Fakeout context gate: require 1H to support the fakeout direction
+                one_h = context_info.get('1h_trend', {}) if context_info else {}
+                fakeout_supported = (
+                    (sig == 'BUY' and one_h.get('direction') == 'bullish' and one_h.get('strength', 0) >= min_1h_strength) or
+                    (sig == 'SELL' and one_h.get('direction') == 'bearish' and one_h.get('strength', 0) >= min_1h_strength)
+                )
+                
+                if not fakeout_supported:
+                    fakeout = None  # Filter out fakeout if 1H doesn't support
+
         return {
             'date': target_date,
-            'status': 'Breakout' if breakout else 'No breakout',
+            'status': 'Fakeout' if fakeout else ('Breakout' if breakout and trade_allowed else 'No breakout'),
             'range_high': range_high,
             'range_low': range_low,
             'range_size': range_size,
-            'breakout': breakout
+            'breakout': breakout if trade_allowed else None,
+            'fakeout': fakeout,
+            'context': context_info if market_context is not None else None,
+            'context_policy': context_policy,
+            'gate_reason': gate_reason
         }
     
     def print_day_analysis(self, analysis: Dict[str, Any]):

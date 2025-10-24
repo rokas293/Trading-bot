@@ -5,6 +5,7 @@ This folder contains historical GER40 (German DAX) price data across multiple ti
 ## Data Files
 
 ### **Primary Dataset - 15-Minute Timeframe**
+
 - **FOREXCOM_GER40, 15 (3).csv** - 15-minute candle data
   - Format: time, open, high, low, close, Up Marker, Down Marker
   - Size: 21,861 rows
@@ -16,11 +17,13 @@ This folder contains historical GER40 (German DAX) price data across multiple ti
 ### **Higher Timeframe Data - For Context & ML Features**
 
 - **FOREXCOM_GER40, 60.csv** - 1-Hour candle data
+
   - Size: 5,615 rows
   - Date Range: October 31, 2024 to October 3, 2025 (aligned with 15m data)
   - Purpose: Trend analysis, higher timeframe context
 
-- **FOREXCOM_GER40, 240.csv** - 4-Hour candle data  
+- **FOREXCOM_GER40, 240.csv** - 4-Hour candle data
+
   - Size: 1,430 rows
   - Date Range: October 31, 2024 to October 3, 2025 (aligned with 15m data)
   - Purpose: Market structure, major trend identification
@@ -33,6 +36,7 @@ This folder contains historical GER40 (German DAX) price data across multiple ti
 ## Data Alignment
 
 All timeframe datasets have been **trimmed to match the 15-minute dataset's date range** to ensure:
+
 - Consistent analysis across all timeframes
 - No data mismatches in multi-timeframe analysis
 - Accurate historical context for each trading day
@@ -40,11 +44,13 @@ All timeframe datasets have been **trimmed to match the 15-minute dataset's date
 ## Use Cases
 
 ### **ORB Strategy (15-Minute)**
+
 - Identify 8:00-8:15 London opening range
 - Detect breakout signals
 - Execute trades with risk management
 
 ### **Multi-Timeframe Analysis (1H, 4H, Daily)**
+
 - Determine higher timeframe trend direction
 - Identify key support/resistance levels
 - Detect liquidity pools and market structure

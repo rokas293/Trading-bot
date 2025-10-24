@@ -1,139 +1,243 @@
 # GER40 ORB Trading Bot
 
-A comprehensive Opening Range Breakout (ORB) trading strategy implementation for GER40 (DAX) with advanced debugging and analysis capabilities.
+A comprehensive Opening Range Breakout (ORB) trading strategy implementation for GER40 (DAX) with multi-timeframe context filtering, machine learning readiness, and advanced debugging.
 
 ## 🎯 Project Overview
 
-This project implements and thoroughly debugs an ORB trading strategy that:
+This project implements an intelligent ORB trading strategy that:
+
 - Identifies the 8:00-8:15 London session opening range
-- Generates BUY/SELL signals on range breakouts
-- Implements realistic risk management and position sizing
-- Provides comprehensive backtesting and analysis
+- Uses multi-timeframe context (Daily/4H/1H) to filter trades
+- Implements strict and soft context policies for flexible participation
+- Detects fakeout patterns (failed breakouts)
+- Provides comprehensive backtesting with win rate and profit factor analysis
+- Built with ML feature engineering foundations
 
-## 🚀 Recent Achievements (October 2025)
+## 🚀 Latest Update (October 2025)
 
-### **Major Debugging Success: 71% → 100% Breakout Rate**
+### **Context-Aware Trading: 123% Profit Increase**
 
-Through systematic debugging, we identified and fixed **7 critical bugs** in the ORB implementation:
+Implemented multi-timeframe context filtering that dramatically improved performance:
 
-1. **❌ Data Format Mismatch** → ✅ Fixed FOREXCOM column compatibility
-2. **❌ Constructor Parameter Errors** → ✅ Fixed strategy initialization
-3. **❌ Unrealistic Stop Loss Logic** → ✅ Implemented candle-based stops
-4. **❌ Time Filtering Bug** → ✅ Excluded ORB period from breakout detection
-5. **❌ Incorrect Data Scope** → ✅ Passed full trading day data to strategy
-6. **❌ Mixed Candle Range Calculation** → ✅ Single 8:00 candle methodology
-7. **❌ Inconsistent Breakout Detection** → ✅ Achieved 100% breakout rate
+**Strict vs Soft Policy Results (Oct 2024 - Oct 2025):**
 
-### **Performance Results**
+| Metric              | Strict Policy | Soft Policy | Improvement |
+| ------------------- | ------------- | ----------- | ----------- |
+| Trades              | 113           | 188         | +66%        |
+| Win Rate            | 58.4%         | 60.1%       | +1.7pp      |
+| Total P&L           | +€2,145.90    | +€4,780.34  | +123%       |
+| Profit Factor       | 1.41          | 1.54        | +9%         |
+| Daily Participation | 47.5%         | 79%         | +66%        |
 
-**Full Year Analysis (Oct 2024 - Oct 2025):**
-- ✅ **238 trades** executed over complete dataset
-- ✅ **100% breakout rate** (all trading days had detectable breakouts)
-- ✅ **48.3% win rate** (115 wins, 123 losses)
-- ✅ **-8% annual return** (realistic baseline established)
-- ✅ **€10,000 → €9,200** with fixed €100 risk per trade
+### **What Changed**
+
+1. **✅ Multi-Timeframe Context Module** (`src/market_context.py`)
+
+   - Analyzes Daily, 4H, and 1H trend directions and strengths
+   - Detects liquidity pools (swing highs/lows, equal levels)
+   - Calculates weighted trend alignment scores
+
+2. **✅ Strict Policy** (Conservative)
+
+   - Only takes trades when higher timeframe alignment matches breakout direction
+   - BUY requires: bullish or weak_bullish context
+   - SELL requires: bearish or weak_bearish context
+
+3. **✅ Soft Policy** (Intelligent)
+
+   - Allows mixed alignment when microstructure confirms:
+     - 1H trend supports with strength ≥ 30, OR
+     - Nearby liquidity pool within 0.5% of price, OR
+     - Small ORB range (≤ 0.4% of price)
+   - Maintains quality while increasing frequency
+
+4. **✅ Fakeout Detection** (`detect_fakeout`)
+
+   - Identifies failed breakouts (wick through range, close back inside)
+   - Trades reversal when 1H trend supports
+   - Adds setup diversity for choppy markets
+
+5. **✅ Configurable Parameters** (`config/trading_config.py`)
+   - Tune thresholds without editing code
+   - Easy A/B testing of different settings
 
 ## 📊 Data & Analysis
 
-### **Dataset**
-- **File**: `FOREXCOM_GER40, 15 (3).csv`
-- **Size**: 21,861 rows (15-minute candles)
+### **Multi-Timeframe Dataset**
+
+- **15-Minute**: FOREXCOM_GER40, 15 (3).csv (21,861 candles)
+- **1-Hour**: FOREXCOM_GER40, 60.csv (5,615 candles)
+- **4-Hour**: FOREXCOM_GER40, 240.csv (1,430 candles)
+- **Daily**: FOREXCOM_GER40, 1D.csv (240 candles)
 - **Coverage**: October 31, 2024 to October 3, 2025
-- **Trading Days**: 241 weekdays analyzed
-- **Breakouts Detected**: 238 days (99.6% of trading days)
+- **Alignment**: All timeframes trimmed to matching date range
 
 ### **Strategy Configuration**
+
 - **ORB Period**: 8:00-8:15 London (7:00 UTC single candle)
 - **Entry Method**: Close-based breakout confirmation
-- **Risk Management**: 5-point stop buffer from candle open
-- **Position Sizing**: Fixed €100 risk per trade
-- **Risk/Reward**: 1:1 ratio
+- **Risk Management**: 5-point stop buffer, 1% account risk per trade
+- **Context Policy**: Strict or Soft (configurable)
+- **Fakeout Setup**: Optional (1H confirmation required)
 
 ## 🛠️ Technical Architecture
 
 ```
 ger40-orb-bot/
 ├── src/
-│   ├── orb_strategy.py      # ✅ Debugged core strategy
-│   ├── data_handler.py      # ✅ FOREXCOM format support
-│   └── ml_enhanced_orb.py   # 🔄 Next phase (ML enhancement)
+│   ├── orb_strategy.py          # ✅ Core strategy with context integration
+│   ├── market_context.py        # ✅ Multi-timeframe analysis
+│   ├── data_handler.py          # ✅ FOREXCOM format support
+│   └── ml_enhanced_orb.py       # 🔄 ML integration (next phase)
 ├── tests/
-│   └── complete_dataset_analysis.py  # ✅ Full year analysis
+│   ├── complete_dataset_analysis.py    # ✅ Full year analysis
+│   ├── trade_count_with_context.py     # ✅ Trade frequency counts
+│   ├── compare_context_policies.py     # ✅ Strict vs soft comparison
+│   └── backtest_with_metrics.py        # ✅ Win rate & profit factor
 ├── data/
-│   └── FOREXCOM_GER40, 15 (3).csv  # ✅ Complete dataset
+│   ├── FOREXCOM_GER40, 15 (3).csv     # 15-minute candles
+│   ├── FOREXCOM_GER40, 60.csv         # 1-hour candles
+│   ├── FOREXCOM_GER40, 240.csv        # 4-hour candles
+│   ├── FOREXCOM_GER40, 1D.csv         # Daily candles
+│   └── README.md                       # Dataset documentation
 ├── config/
-│   └── settings.py          # ✅ Configuration management
-└── results/                 # Generated analysis outputs
+│   ├── settings.py              # ✅ Base configuration
+│   └── trading_config.py        # ✅ Tuning parameters
+├── docs/
+│   └── context_policies.md      # ✅ Context filtering documentation
+└── results/                     # Generated analysis outputs
 ```
 
-## 🔧 Key Debugging Fixes
+## 🔧 Context Filtering Logic
 
-### **Single-Candle ORB Methodology**
-**Before (Incorrect):**
+### **Strict Policy**
+
 ```python
-# Mixed candle approach - created unrealistic ranges
-range_high = max(candle_8_00['high'], candle_8_15['high'])
-range_low = min(candle_8_00['low'], candle_8_15['low'])
+if signal == 'BUY' and alignment not in ['bullish', 'weak_bullish']:
+    block_trade()
+if signal == 'SELL' and alignment not in ['bearish', 'weak_bearish']:
+    block_trade()
 ```
 
-**After (Correct):**
-```python
-# Single 8:00 candle approach - realistic market ranges
-orb_candle = orb_data[orb_data['datetime'].dt.minute == 0]
-range_high = orb_candle['high'].iloc[0]
-range_low = orb_candle['low'].iloc[0]
-```
+### **Soft Policy**
 
-### **Proper Time Filtering**
-**Before (Inclusive):**
 ```python
-breakout_data = post_orb_data[post_orb_data['datetime'] >= orb_end_time]  # ❌ Includes ORB period
-```
-
-**After (Exclusive):**
-```python
-breakout_data = post_orb_data[post_orb_data['datetime'] > orb_end_time]   # ✅ Excludes ORB period
+if alignment == 'mixed':
+    allow_if:
+        1H_trend_supports(strength >= 30) OR
+        liquidity_nearby(distance <= 0.5%) OR
+        small_range(range_pct <= 0.4%)
 ```
 
 ## 📈 Usage Examples
 
-### **Run Complete Analysis**
-```python
-from tests.complete_dataset_analysis import main
-main()  # Analyzes full year dataset
+### **Run Full Backtest with Metrics**
+
+```bash
+cd ger40-orb-bot
+python tests/backtest_with_metrics.py
 ```
 
-### **Single Day Analysis**
+Output includes: trade counts, win rate, profit factor, final balance
+
+### **Compare Strict vs Soft Policies**
+
+```bash
+python tests/compare_context_policies.py
+```
+
+### **Count Trades with Context**
+
+```bash
+python tests/trade_count_with_context.py
+```
+
+### **Single Day Analysis with Context**
+
 ```python
 from src.orb_strategy import ORBStrategy
+from src.market_context import MarketContext
 from src.data_handler import DataHandler
 
 strategy = ORBStrategy()
+mc = MarketContext(data_dir="data")
 handler = DataHandler("data/FOREXCOM_GER40, 15 (3).csv")
 df = handler.load_data()
 
-analysis = strategy.analyze_single_day(df, '2025-10-02')
-strategy.print_day_analysis(analysis)
+analysis = strategy.analyze_single_day(
+    df, '2025-10-02',
+    market_context=mc,
+    context_policy='soft',
+    enable_fakeouts=True
+)
+print(analysis)
 ```
 
-## 🎯 Next Phase: ML Enhancement
+## ⚙️ Configuration
 
-With the robust ORB baseline established, the next development phase will focus on:
+Edit `config/trading_config.py` to tune strategy parameters:
 
-1. **Machine Learning Integration** (`ml_enhanced_orb.py`)
-   - Feature engineering for market conditions
-   - Breakout success probability prediction
-   - Dynamic trade filtering
+```python
+CONTEXT_POLICY = 'soft'           # 'strict' or 'soft'
+MIN_1H_STRENGTH = 30              # 1H trend strength threshold
+MAX_ORB_PCT = 0.004               # 0.4% - ORB range size limit
+MAX_LIQ_DISTANCE_PCT = 0.005      # 0.5% - Liquidity proximity
+ENABLE_FAKEOUTS = True            # Enable/disable fakeout entries
+```
 
-2. **Advanced Risk Management**
-   - Volatility-based position sizing
-   - Market regime detection
-   - Adaptive stop losses
+## 🎯 ML Readiness
 
-3. **Strategy Optimization**
-   - Multi-timeframe analysis
-   - Session-based filtering
-   - Performance enhancement
+The strategy is built with machine learning integration in mind:
+
+**Available Features:**
+
+- Trend directions (Daily/4H/1H): categorical
+- Trend strengths (0-100): numeric
+- Trend alignment score: numeric
+- Liquidity pool proximity: numeric
+- ORB range characteristics: numeric
+- Timeframe agreement counts: numeric
+
+**Labeled Data:**
+
+- Every trade has outcome (win/loss)
+- Context features stored with each trade
+- Ready for binary classification
+
+**Next Steps:**
+
+1. Collect labeled dataset (backtest with outcomes)
+2. Train classifier to predict win probability
+3. Compare rule-based vs ML performance
+4. Implement hybrid approach (ML confidence + rules)
+
+## 📚 Documentation
+
+- **Context Policies**: See `docs/context_policies.md`
+- **Dataset Info**: See `data/README.md`
+- **Configuration**: See `config/trading_config.py`
+
+## 🚀 Recent Achievements
+
+### **Phase 1: Debugging (Completed)**
+
+- Fixed 7 critical bugs in ORB implementation
+- Achieved 100% breakout detection rate
+- Established realistic baseline performance
+
+### **Phase 2: Context Filtering (Completed)**
+
+- Implemented multi-timeframe analysis
+- Created strict and soft policies
+- Increased daily participation to 79%
+- Improved profit by 123%
+- Added fakeout detection
+
+### **Phase 3: ML Integration (In Progress)**
+
+- Feature engineering foundation complete
+- Rule-based baseline established (60% win rate, 1.54 PF)
+- Ready for classifier training and hybrid approach
 
 ## 📋 Requirements
 
